@@ -1,0 +1,271 @@
+import asyncio
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from app.models import (
+    AnalysisSession, 
+    AnalysisFile, 
+    AnalysisResult, 
+    UploadedFile,
+    FileProcessingResult
+)
+from app.services.llm_service import LLMService
+from app.data.wcag22 import WCAG_22_GUIDELINES, POUR_PRINCIPLES
+
+class AnalysisService:
+    def __init__(self):
+        self.llm_service = LLMService()
+    
+    async def start_analysis(
+        self,
+        db: Session,
+        session_id: int,
+        file_ids: List[int],
+        llm_models: List[str]
+    ) -> Dict[str, Any]:
+        """Start accessibility analysis for uploaded files."""
+        # Get analysis session
+        session = db.query(AnalysisSession).filter(AnalysisSession.id == session_id).first()
+        if not session:
+            raise ValueError("Analysis session not found")
+        
+        # Update session status
+        session.status = "running"
+        db.commit()
+        
+        try:
+            # Get uploaded files
+            files = db.query(UploadedFile).filter(UploadedFile.id.in_(file_ids)).all()
+            
+            # Process files
+            processed_files = await self._process_files(files)
+            
+            # Create analysis file records
+            for file_data in processed_files:
+                analysis_file = AnalysisFile(
+                    analysis_session_id=session_id,
+                    uploaded_file_id=file_data["file_id"],
+                    processed_content=file_data["content"],
+                    file_metadata=file_data["metadata"]
+                )
+                db.add(analysis_file)
+            db.commit()
+            
+            # Analyze with each LLM
+            all_issues = []
+            for llm_model in llm_models:
+                issues = await self._analyze_with_llm(
+                    db, session_id, processed_files, llm_model
+                )
+                all_issues.extend(issues)
+            
+            # Update session status
+            session.status = "completed"
+            db.commit()
+            
+            return {
+                "session_id": session_id,
+                "total_issues": len(all_issues),
+                "issues_by_pour": self._categorize_by_pour(all_issues),
+                "issues_by_severity": self._categorize_by_severity(all_issues)
+            }
+            
+        except Exception as e:
+            # Update session status to failed
+            session.status = "failed"
+            db.commit()
+            raise e
+    
+    async def _process_files(self, files: List[UploadedFile]) -> List[Dict[str, Any]]:
+        """Process uploaded files for analysis."""
+        processed_files = []
+        
+        for file in files:
+            try:
+                # Read file content
+                with open(file.file_path, 'rb') as f:
+                    content = f.read()
+                
+                # Decode text files
+                if file.mime_type.startswith('text/') or file.file_type in [
+                    '.html', '.css', '.js', '.ts', '.jsx', '.tsx', 
+                    '.vue', '.svelte', '.json', '.xml', '.qml'
+                ]:
+                    try:
+                        content = content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        content = content.decode('utf-8', errors='ignore')
+                else:
+                    # For binary files, we'll analyze metadata and structure
+                    content = f"Binary file: {file.original_filename}\nSize: {file.file_size} bytes\nType: {file.mime_type}"
+                
+                # Extract metadata
+                metadata = {
+                    "filename": file.original_filename,
+                    "file_type": file.file_type,
+                    "mime_type": file.mime_type,
+                    "file_size": file.file_size,
+                    "is_text": file.mime_type.startswith('text/') or file.file_type in [
+                        '.html', '.css', '.js', '.ts', '.jsx', '.tsx', 
+                        '.vue', '.svelte', '.json', '.xml', '.qml'
+                    ]
+                }
+                
+                processed_files.append({
+                    "file_id": file.id,
+                    "content": content,
+                    "metadata": metadata
+                })
+                
+            except Exception as e:
+                print(f"Error processing file {file.original_filename}: {e}")
+                processed_files.append({
+                    "file_id": file.id,
+                    "content": f"Error processing file: {str(e)}",
+                    "metadata": {"error": str(e)}
+                })
+        
+        return processed_files
+    
+    async def _analyze_with_llm(
+        self,
+        db: Session,
+        session_id: int,
+        processed_files: List[Dict[str, Any]],
+        llm_model: str
+    ) -> List[Dict[str, Any]]:
+        """Analyze files with a specific LLM model."""
+        all_issues = []
+        
+        for file_data in processed_files:
+            try:
+                # Analyze file content
+                response = await self.llm_service.analyze_accessibility(
+                    llm_model,
+                    file_data["content"],
+                    file_data["metadata"]["file_type"],
+                    file_data["metadata"]["filename"]
+                )
+                
+                # Parse response
+                issues = self.llm_service.parse_llm_response(response, llm_model)
+                
+                # Save issues to database
+                for issue in issues:
+                    db_issue = AnalysisResult(
+                        analysis_session_id=session_id,
+                        llm_model=llm_model,
+                        wcag_guideline=issue.get("wcag_guideline", "Unknown"),
+                        pour_principle=issue.get("pour_principle", "unknown"),
+                        severity=issue.get("severity", "medium"),
+                        title=issue.get("title", "Accessibility Issue"),
+                        description=issue.get("description", ""),
+                        file_path=file_data["metadata"]["filename"],
+                        line_number=issue.get("line_number"),
+                        code_snippet=issue.get("code_snippet"),
+                        suggestion=issue.get("suggestion"),
+                        confidence_score=issue.get("confidence_score", 0.5)
+                    )
+                    db.add(db_issue)
+                    all_issues.append(issue)
+                
+                db.commit()
+                
+            except Exception as e:
+                print(f"Error analyzing file with {llm_model}: {e}")
+                continue
+        
+        return all_issues
+    
+    def _categorize_by_pour(self, issues: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Categorize issues by POUR principle."""
+        categorized = {
+            "perceivable": [],
+            "operable": [],
+            "understandable": [],
+            "robust": []
+        }
+        
+        for issue in issues:
+            pour_principle = issue.get("pour_principle", "unknown").lower()
+            if pour_principle in categorized:
+                categorized[pour_principle].append(issue)
+        
+        return categorized
+    
+    def _categorize_by_severity(self, issues: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Categorize issues by severity level."""
+        categorized = {
+            "critical": [],
+            "high": [],
+            "medium": [],
+            "low": []
+        }
+        
+        for issue in issues:
+            severity = issue.get("severity", "medium").lower()
+            if severity in categorized:
+                categorized[severity].append(issue)
+        
+        return categorized
+    
+    def get_analysis_results(
+        self,
+        db: Session,
+        session_id: int
+    ) -> Dict[str, Any]:
+        """Get analysis results for a session."""
+        # Get session
+        session = db.query(AnalysisSession).filter(AnalysisSession.id == session_id).first()
+        if not session:
+            raise ValueError("Analysis session not found")
+        
+        # Get all issues for this session
+        issues = db.query(AnalysisResult).filter(
+            AnalysisResult.analysis_session_id == session_id
+        ).all()
+        
+        # Convert to dict format
+        issues_data = []
+        for issue in issues:
+            issues_data.append({
+                "id": issue.id,
+                "wcag_guideline": issue.wcag_guideline,
+                "pour_principle": issue.pour_principle,
+                "severity": issue.severity,
+                "title": issue.title,
+                "description": issue.description,
+                "file_path": issue.file_path,
+                "line_number": issue.line_number,
+                "code_snippet": issue.code_snippet,
+                "suggestion": issue.suggestion,
+                "confidence_score": issue.confidence_score,
+                "created_at": issue.created_at
+            })
+        
+        # Categorize issues
+        issues_by_pour = self._categorize_by_pour(issues_data)
+        issues_by_severity = self._categorize_by_severity(issues_data)
+        
+        # Create summary
+        summary = {
+            "total_issues": len(issues_data),
+            "issues_by_pour": {k: len(v) for k, v in issues_by_pour.items()},
+            "issues_by_severity": {k: len(v) for k, v in issues_by_severity.items()},
+            "unique_wcag_guidelines": len(set(issue["wcag_guideline"] for issue in issues_data)),
+            "files_analyzed": len(set(issue["file_path"] for issue in issues_data if issue["file_path"]))
+        }
+        
+        return {
+            "session": {
+                "id": session.id,
+                "name": session.name,
+                "description": session.description,
+                "status": session.status,
+                "created_at": session.created_at,
+                "completed_at": session.completed_at
+            },
+            "issues": issues_data,
+            "issues_by_pour": issues_by_pour,
+            "issues_by_severity": issues_by_severity,
+            "summary": summary
+        }

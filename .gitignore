@@ -1,0 +1,28 @@
+# Node
+node_modules/
+**/.cache/
+dist/
+build/
+# Vite/Next/Parcel
+.vite/
+.next/
+.nuxt/
+.parcel-cache/
+# Logs & coverage
+logs/
+*.log
+coverage/
+# Env
+.env
+.env.*
+# Python
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+venv/
+# IDE
+.idea/
+.vscode/
+# OS
+.DS_Store
