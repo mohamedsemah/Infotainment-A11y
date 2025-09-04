@@ -26,7 +26,6 @@ import { useAppStore } from '../store';
 import { UploadedFile, LLMModel } from '../types';
 import FileUpload from '../components/FileUpload/FileUpload';
 import LLMSelection from '../components/LLMSelection/LLMSelection';
-import { AVAILABLE_LLM_MODELS } from '../data/llmModels';
 
 const AnalysisPage: React.FC = () => {
   const theme = useTheme();
@@ -72,20 +71,29 @@ const AnalysisPage: React.FC = () => {
   };
 
   const handleStartAnalysis = async () => {
+    console.log('🎯 [ANALYSIS PAGE] Starting analysis...');
+    console.log('📁 [ANALYSIS PAGE] Files:', uploadedFiles.length, uploadedFiles.map(f => f.name));
+    console.log('🤖 [ANALYSIS PAGE] Models:', selectedModels.length, selectedModels.map(m => m.name));
+    
     if (uploadedFiles.length === 0) {
+      console.log('❌ [ANALYSIS PAGE] No files uploaded');
       toast.error('Please upload files first');
       return;
     }
     if (selectedModels.length === 0) {
+      console.log('❌ [ANALYSIS PAGE] No models selected');
       toast.error('Please select AI models first');
       return;
     }
 
     try {
-      startAnalysis(uploadedFiles, selectedModels);
+      console.log('🚀 [ANALYSIS PAGE] Calling startAnalysis...');
+      await startAnalysis(uploadedFiles, selectedModels);
+      console.log('✅ [ANALYSIS PAGE] Analysis started successfully');
       toast.success('Analysis started successfully!');
       navigate('/results');
     } catch (error) {
+      console.error('💥 [ANALYSIS PAGE] Failed to start analysis:', error);
       toast.error('Failed to start analysis');
     }
   };
@@ -106,7 +114,7 @@ const AnalysisPage: React.FC = () => {
           <LLMSelection
             selectedModels={selectedModels}
             onSelectionChange={setSelectedModels}
-            maxSelection={3}
+            maxSelection={6}
           />
         );
       case 2:

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -15,8 +15,6 @@ import {
   ListItemText,
   ListItemIcon,
   Switch,
-  FormControlLabel,
-  Alert,
   useTheme
 } from '@mui/material';
 import {
@@ -31,12 +29,14 @@ import {
   Warning
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import toast from 'react-hot-toast';
 
 const ProfilePage: React.FC = () => {
   const theme = useTheme();
-  const { user, theme: appTheme, toggleTheme, setTheme } = useAppStore();
+  const navigate = useNavigate();
+  const { user, theme: appTheme, toggleTheme, updateUser } = useAppStore();
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -55,8 +55,23 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleSave = () => {
-    // TODO: Implement save functionality
+    // Update the user data in the store
+    updateUser({
+      name: formData.name,
+      email: formData.email
+    });
+    
     toast.success('Profile updated successfully!');
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    // Reset form data to original user data
+    setFormData(prev => ({
+      ...prev,
+      name: user?.name || '',
+      email: user?.email || ''
+    }));
     setIsEditing(false);
   };
 
@@ -65,22 +80,33 @@ const ProfilePage: React.FC = () => {
     setFormData(prev => ({ ...prev, darkMode: !prev.darkMode }));
   };
 
+  const { currentSession, analysisResults } = useAppStore();
+  
+  // Update form data when user data changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      name: user?.name || '',
+      email: user?.email || ''
+    }));
+  }, [user]);
+
   const accountStats = [
     {
       title: 'Total Analyses',
-      value: '24',
+      value: analysisResults ? '1' : '0',
       icon: <CheckCircle />,
       color: theme.palette.success.main
     },
     {
-      title: 'Issues Resolved',
-      value: '156',
+      title: 'Issues Found',
+      value: analysisResults?.totalIssues.toString() || '0',
       icon: <Warning />,
       color: theme.palette.warning.main
     },
     {
       title: 'Account Created',
-      value: new Date(user?.createdAt || Date.now()).toLocaleDateString(),
+      value: new Date().toLocaleDateString(),
       icon: <Person />,
       color: theme.palette.info.main
     }
@@ -114,13 +140,33 @@ const ProfilePage: React.FC = () => {
                 <Typography variant="h6" fontWeight="bold">
                   Personal Information
                 </Typography>
-                <Button
-                  variant={isEditing ? "contained" : "outlined"}
-                  startIcon={isEditing ? <Save /> : <Edit />}
-                  onClick={isEditing ? handleSave : () => setIsEditing(true)}
-                >
-                  {isEditing ? 'Save Changes' : 'Edit Profile'}
-                </Button>
+                <Box display="flex" gap={1}>
+                  {isEditing ? (
+                    <>
+                      <Button
+                        variant="outlined"
+                        onClick={handleCancel}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        startIcon={<Save />}
+                        onClick={handleSave}
+                      >
+                        Save Changes
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      startIcon={<Edit />}
+                      onClick={() => setIsEditing(true)}
+                    >
+                      Edit Profile
+                    </Button>
+                  )}
+                </Box>
               </Box>
 
               <Grid container spacing={3}>
@@ -226,8 +272,24 @@ const ProfilePage: React.FC = () => {
           >
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
-                Account Statistics
+                {analysisResults ? 'Account Statistics' : 'Getting Started'}
               </Typography>
+              {!analysisResults && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Complete your first analysis to see your statistics here.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<CheckCircle />}
+                    onClick={() => navigate('/analysis')}
+                    sx={{ mb: 2 }}
+                  >
+                    Start Your First Analysis
+                  </Button>
+                </Box>
+              )}
               
               {accountStats.map((stat, index) => (
                 <motion.div

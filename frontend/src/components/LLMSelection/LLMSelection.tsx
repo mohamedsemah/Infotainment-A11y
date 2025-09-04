@@ -35,7 +35,7 @@ interface LLMSelectionProps {
 const LLMSelection: React.FC<LLMSelectionProps> = ({
   selectedModels,
   onSelectionChange,
-  maxSelection = 3
+  maxSelection = 6
 }) => {
   const theme = useTheme();
   const [showDetails, setShowDetails] = useState<string | null>(null);
@@ -95,7 +95,7 @@ const LLMSelection: React.FC<LLMSelectionProps> = ({
         </Typography>
         <Typography variant="body2" color="text.secondary" paragraph>
           Choose up to {maxSelection} AI models to analyze your infotainment system files. 
-          Different models may provide varying insights and accuracy levels.
+          Different models may provide varying insights and accuracy levels. Using multiple models can give you more comprehensive analysis results.
         </Typography>
 
         {selectedModels.length > 0 && (

@@ -3,17 +3,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
+import logging
 from app.config import settings
 from app.database import create_tables
 from app.routers import auth, files, analysis, wcag
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("🚀 [MAIN] Starting Accessibility Analysis API...")
     create_tables()
+    logger.info("✅ [MAIN] Database tables created")
     yield
     # Shutdown
-    pass
+    logger.info("🛑 [MAIN] Shutting down API...")
 
 app = FastAPI(
     title="Accessibility Analysis API",
@@ -31,11 +38,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router)
-app.include_router(files.router)
-app.include_router(analysis.router)
-app.include_router(wcag.router)
+# Include routers with /api prefix
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    logger.info("🏥 [MAIN] Health check requested")
+    return {"status": "healthy", "message": "Accessibility Analysis API is running"}
+
+app.include_router(auth.router, prefix="/api")
+app.include_router(files.router, prefix="/api")
+app.include_router(analysis.router, prefix="/api")
+app.include_router(wcag.router, prefix="/api")
 
 @app.get("/")
 async def root():
@@ -53,10 +66,6 @@ async def root():
         }
     }
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "version": "1.0.0"}
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):

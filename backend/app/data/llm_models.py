@@ -61,12 +61,11 @@ LLM_CONFIGS = {
             "Authorization": "Bearer {api_key}",
             "Content-Type": "application/json"
         },
-        "max_tokens": 4000,
-        "temperature": 0.1
+        "max_completion_tokens": 4000
     },
     "claude-opus-4": {
         "api_endpoint": "https://api.anthropic.com/v1/messages",
-        "model_name": "claude-3-opus-20240229",
+        "model_name": "claude-opus-4-20250514",
         "headers": {
             "x-api-key": "{api_key}",
             "Content-Type": "application/json",
@@ -76,8 +75,8 @@ LLM_CONFIGS = {
         "temperature": 0.1
     },
     "gemini-2.5-pro": {
-        "api_endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
-        "model_name": "gemini-1.5-pro",
+        "api_endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+        "model_name": "gemini-2.5-pro",
         "headers": {
             "Content-Type": "application/json"
         },
@@ -86,7 +85,7 @@ LLM_CONFIGS = {
     },
     "grok-4": {
         "api_endpoint": "https://api.x.ai/v1/chat/completions",
-        "model_name": "grok-beta",
+        "model_name": "grok-4-0709",
         "headers": {
             "Authorization": "Bearer {api_key}",
             "Content-Type": "application/json"
@@ -96,7 +95,7 @@ LLM_CONFIGS = {
     },
     "llama-4": {
         "api_endpoint": "https://api.groq.com/openai/v1/chat/completions",
-        "model_name": "llama-3-70b-8192",
+        "model_name": "llama-maverick",
         "headers": {
             "Authorization": "Bearer {api_key}",
             "Content-Type": "application/json"

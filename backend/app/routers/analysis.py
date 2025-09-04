@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.auth import get_current_active_user
+from app.auth import get_current_active_user, get_current_active_user_dev
 from app.models import (
     User, 
     AnalysisSessionCreate, 
@@ -14,6 +14,65 @@ from app.services.analysis_service import AnalysisService
 
 router = APIRouter(prefix="/analysis", tags=["accessibility analysis"])
 analysis_service = AnalysisService()
+
+# Add logging
+import logging
+logger = logging.getLogger(__name__)
+
+@router.post("/start")
+async def start_analysis_endpoint(
+    request_data: dict,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_active_user_dev),
+    db: Session = Depends(get_db)
+):
+    """Start analysis endpoint that matches frontend expectations."""
+    logger.info(f"🚀 [BACKEND] Starting analysis for user {current_user.id}")
+    logger.info(f"📁 [BACKEND] Files: {len(request_data.get('files', []))}")
+    logger.info(f"🤖 [BACKEND] Models: {request_data.get('models', [])}")
+    
+    try:
+        session_id = request_data.get('sessionId')
+        files = request_data.get('files', [])
+        models = request_data.get('models', [])
+        
+        logger.info(f"📝 [BACKEND] Session ID: {session_id}")
+        
+        # Start analysis in background
+        background_tasks.add_task(
+            analysis_service.start_analysis_simple,
+            session_id,
+            files,
+            models,
+            current_user.id
+        )
+        
+        logger.info(f"✅ [BACKEND] Analysis started for session {session_id}")
+        return {"message": "Analysis started", "sessionId": session_id, "status": "analyzing"}
+        
+    except Exception as e:
+        logger.error(f"💥 [BACKEND] Failed to start analysis: {e}")
+        import traceback
+        logger.error(f"💥 [BACKEND] Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+@router.get("/progress/{session_id}")
+async def get_analysis_progress(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user_dev),
+    db: Session = Depends(get_db)
+):
+    """Get analysis progress endpoint."""
+    logger.info(f"📊 [BACKEND] Getting progress for session {session_id}")
+    
+    try:
+        progress_data = analysis_service.get_progress(session_id)
+        logger.info(f"📈 [BACKEND] Progress data: {progress_data}")
+        return progress_data
+        
+    except Exception as e:
+        logger.error(f"💥 [BACKEND] Failed to get progress: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/sessions", response_model=AnalysisSessionResponse)
 async def create_analysis_session(

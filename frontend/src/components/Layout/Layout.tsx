@@ -23,16 +23,14 @@ import {
 import {
   Menu as MenuIcon,
   Dashboard,
-  Analytics,
   Assessment,
   Person,
   Logout,
   Brightness4,
   Brightness7,
-  Upload,
-  BugReport
+  Upload
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAppStore } from '../../store';
 
 const drawerWidth = 280;
@@ -267,17 +265,7 @@ const Layout: React.FC = () => {
           backgroundColor: theme.palette.background.default
         }}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <Outlet />
       </Box>
 
       <Menu

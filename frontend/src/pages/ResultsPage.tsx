@@ -10,7 +10,6 @@ import {
   CardContent,
   Chip,
   Button,
-  IconButton,
   Badge,
   useTheme,
   Alert
@@ -20,7 +19,6 @@ import {
   TouchApp,
   Psychology,
   Build,
-  FilterList,
   Download,
   Refresh,
   BugReport
@@ -29,7 +27,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store';
 import { AccessibilityIssue, POUR_PRINCIPLES } from '../types';
 import IssueModal from '../components/Results/IssueModal';
-import { WCAG_2_2_GUIDELINES } from '../data/wcag22';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -55,7 +52,7 @@ function TabPanel(props: TabPanelProps) {
 
 const ResultsPage: React.FC = () => {
   const theme = useTheme();
-  const { analysisResults, currentSession, isLoading } = useAppStore();
+  const { analysisResults, isLoading } = useAppStore();
   
   const [activeTab, setActiveTab] = useState(0);
   const [selectedIssue, setSelectedIssue] = useState<AccessibilityIssue | null>(null);

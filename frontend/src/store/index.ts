@@ -3,10 +3,64 @@ import { persist } from 'zustand/middleware';
 import { AppState, User, Theme, AnalysisSession, AccessibilityIssue, UploadedFile, LLMModel } from '../types';
 import { lightTheme, darkTheme } from '../theme';
 
+// Polling function for analysis progress
+const pollAnalysisProgress = async (sessionId: string) => {
+  console.log('🔄 [POLLING] Starting progress polling for session:', sessionId);
+  
+  const poll = async () => {
+    try {
+      console.log('📡 [POLLING] Checking progress...');
+      const response = await fetch(`/api/analysis/progress/${sessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.error('❌ [POLLING] Progress check failed:', response.status);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('📊 [POLLING] Progress data:', data);
+      
+      // Update progress in store
+      const store = useAppStore.getState();
+      if (store.currentSession?.id === sessionId) {
+        store.updateAnalysisProgress(data.progress || 0);
+        
+        if (data.status === 'completed') {
+          console.log('✅ [POLLING] Analysis completed!');
+          store.completeAnalysis(data.issues || []);
+          return; // Stop polling
+        } else if (data.status === 'failed') {
+          console.error('💥 [POLLING] Analysis failed!');
+          store.setError(data.error || 'Analysis failed');
+          store.setLoading(false);
+          return; // Stop polling
+        }
+      }
+      
+      // Continue polling if still analyzing
+      if (data.status === 'analyzing') {
+        setTimeout(poll, 2000); // Poll every 2 seconds
+      }
+      
+    } catch (error) {
+      console.error('💥 [POLLING] Polling error:', error);
+    }
+  };
+  
+  // Start polling after a short delay
+  setTimeout(poll, 1000);
+};
+
+
 interface AppStore extends AppState {
   // Auth actions
   login: (user: User) => void;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
   
   // Theme actions
   toggleTheme: () => void;
@@ -42,6 +96,12 @@ export const useAppStore = create<AppStore>()(
       // Auth actions
       login: (user: User) => set({ user }),
       logout: () => set({ user: null, currentSession: null, analysisResults: null }),
+      updateUser: (updates: Partial<User>) => {
+        const currentUser = get().user;
+        if (currentUser) {
+          set({ user: { ...currentUser, ...updates } });
+        }
+      },
 
       // Theme actions
       toggleTheme: () => {
@@ -67,7 +127,11 @@ export const useAppStore = create<AppStore>()(
       },
 
       // Analysis actions
-      startAnalysis: (files: UploadedFile[], models: LLMModel[]) => {
+      startAnalysis: async (files: UploadedFile[], models: LLMModel[]) => {
+        console.log('🚀 [STORE] Starting analysis...');
+        console.log('📁 [STORE] Files:', files.length, files.map(f => f.name));
+        console.log('🤖 [STORE] Models:', models.length, models.map(m => m.name));
+        
         const sessionId = `session_${Date.now()}`;
         const session: AnalysisSession = {
           id: sessionId,
@@ -80,9 +144,55 @@ export const useAppStore = create<AppStore>()(
           createdAt: new Date(),
           progress: 0
         };
+        
+        console.log('📝 [STORE] Created session:', sessionId);
         set({ currentSession: session, isLoading: true, error: null });
+        
+        try {
+          console.log('🌐 [STORE] Calling backend API...');
+          const response = await fetch('/api/analysis/start', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
+            },
+            body: JSON.stringify({
+              sessionId,
+              files: files.map(f => ({
+                name: f.name,
+                content: f.content,
+                type: f.type,
+                size: f.size
+              })),
+              models: models.map(m => m.id)
+            })
+          });
+          
+          console.log('📡 [STORE] Backend response status:', response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.text();
+            console.error('❌ [STORE] Backend error:', errorData);
+            throw new Error(`Backend error: ${response.status} - ${errorData}`);
+          }
+          
+          const result = await response.json();
+          console.log('✅ [STORE] Backend response:', result);
+          
+          // Start polling for progress
+          pollAnalysisProgress(sessionId);
+          
+        } catch (error) {
+          console.error('💥 [STORE] Analysis failed:', error);
+          set({ 
+            currentSession: { ...session, status: 'failed' }, 
+            isLoading: false, 
+            error: error instanceof Error ? error.message : 'Analysis failed - please ensure backend is running' 
+          });
+        }
       },
       updateAnalysisProgress: (progress: number) => {
+        console.log('📊 [STORE] Updating progress:', progress + '%');
         const currentSession = get().currentSession;
         if (currentSession) {
           set({ currentSession: { ...currentSession, progress } });

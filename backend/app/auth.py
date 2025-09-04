@@ -87,3 +87,25 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+def get_current_active_user_dev(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """Development version that bypasses authentication for demo purposes."""
+    # For development, create a demo user if none exists
+    demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+    if not demo_user:
+        demo_user = User(
+            id="demo-user-123",
+            email="demo@example.com",
+            name="Demo User",
+            hashed_password=get_password_hash("demo123"),
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(demo_user)
+        db.commit()
+        db.refresh(demo_user)
+    
+    return demo_user

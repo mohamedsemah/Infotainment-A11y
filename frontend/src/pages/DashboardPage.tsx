@@ -18,10 +18,8 @@ import {
 import {
   Upload,
   Assessment,
-  TrendingUp,
   BugReport,
   CheckCircle,
-  Warning,
   Error,
   Info,
   History,
@@ -39,86 +37,36 @@ const DashboardPage: React.FC = () => {
   const quickStats = [
     {
       title: 'Total Analyses',
-      value: '12',
+      value: '0',
       icon: <Assessment />,
       color: theme.palette.primary.main,
-      change: '+3 this month'
+      change: 'No analyses yet'
     },
     {
       title: 'Issues Found',
       value: analysisResults?.totalIssues.toString() || '0',
       icon: <BugReport />,
       color: theme.palette.error.main,
-      change: 'Last analysis'
+      change: analysisResults ? 'Last analysis' : 'No issues found'
     },
     {
       title: 'Compliance Rate',
-      value: '87%',
+      value: 'N/A',
       icon: <CheckCircle />,
       color: theme.palette.success.main,
-      change: '+5% improvement'
+      change: 'No data available'
     },
     {
       title: 'Files Analyzed',
       value: currentSession?.files.length.toString() || '0',
       icon: <Upload />,
       color: theme.palette.info.main,
-      change: 'Current session'
+      change: currentSession ? 'Current session' : 'No files uploaded'
     }
   ];
 
-  const recentActivities = [
-    {
-      id: 1,
-      title: 'Infotainment System Analysis',
-      description: 'Analyzed 45 files with 3 AI models',
-      timestamp: '2 hours ago',
-      status: 'completed',
-      issues: 12
-    },
-    {
-      id: 2,
-      title: 'Navigation Interface Review',
-      description: 'Focused on WCAG 2.2 compliance',
-      timestamp: '1 day ago',
-      status: 'completed',
-      issues: 8
-    },
-    {
-      id: 3,
-      title: 'Media Player Accessibility',
-      description: 'Audio and video accessibility check',
-      timestamp: '3 days ago',
-      status: 'completed',
-      issues: 5
-    }
-  ];
+  const recentActivities: any[] = [];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return theme.palette.success.main;
-      case 'in-progress':
-        return theme.palette.warning.main;
-      case 'failed':
-        return theme.palette.error.main;
-      default:
-        return theme.palette.grey[500];
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle />;
-      case 'in-progress':
-        return <PlayArrow />;
-      case 'failed':
-        return <Error />;
-      default:
-        return <Info />;
-    }
-  };
 
   return (
     <Box>
@@ -129,10 +77,13 @@ const DashboardPage: React.FC = () => {
       >
         <Box mb={4}>
           <Typography variant="h4" gutterBottom fontWeight="bold">
-            Welcome back, {user?.name}!
+            Welcome{analysisResults ? ' back' : ''}, {user?.name}!
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Here's an overview of your accessibility analysis activities.
+            {analysisResults 
+              ? "Here's an overview of your accessibility analysis activities."
+              : "Ready to start analyzing your infotainment system for accessibility compliance? Upload your files and begin your first analysis."
+            }
           </Typography>
         </Box>
 
@@ -238,62 +189,38 @@ const DashboardPage: React.FC = () => {
                   <Typography variant="h6" gutterBottom fontWeight="bold">
                     Recent Activities
                   </Typography>
-                  <List>
-                    {recentActivities.map((activity, index) => (
-                      <motion.div
-                        key={activity.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                  {recentActivities.length > 0 ? (
+                    <List>
+                      {/* Activities will be shown here when they exist */}
+                    </List>
+                  ) : (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        py: 4,
+                        textAlign: 'center'
+                      }}
+                    >
+                      <History sx={{ fontSize: 48, color: theme.palette.text.secondary, mb: 2 }} />
+                      <Typography variant="h6" color="text.secondary" gutterBottom>
+                        No Recent Activities
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" paragraph>
+                        Start your first analysis to see your activity history here.
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        startIcon={<Upload />}
+                        onClick={() => navigate('/analysis')}
+                        sx={{ mt: 1 }}
                       >
-                        <ListItem
-                          sx={{
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 2,
-                            mb: 1,
-                            backgroundColor: theme.palette.background.paper
-                          }}
-                        >
-                          <ListItemIcon>
-                            <Avatar
-                              sx={{
-                                backgroundColor: getStatusColor(activity.status) + '20',
-                                color: getStatusColor(activity.status),
-                                width: 40,
-                                height: 40
-                              }}
-                            >
-                              {getStatusIcon(activity.status)}
-                            </Avatar>
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={
-                              <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="subtitle1" fontWeight="bold">
-                                  {activity.title}
-                                </Typography>
-                                <Chip
-                                  label={`${activity.issues} issues`}
-                                  size="small"
-                                  color={activity.issues > 10 ? 'error' : activity.issues > 5 ? 'warning' : 'success'}
-                                />
-                              </Box>
-                            }
-                            secondary={
-                              <Box>
-                                <Typography variant="body2" color="text.secondary">
-                                  {activity.description}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {activity.timestamp}
-                                </Typography>
-                              </Box>
-                            }
-                          />
-                        </ListItem>
-                      </motion.div>
-                    ))}
-                  </List>
+                        Start Analysis
+                      </Button>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

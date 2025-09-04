@@ -117,9 +117,12 @@ Provide only the JSON array, no additional text.
                 {"role": "system", "content": "You are an expert accessibility analyst. Always respond with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": config["max_tokens"],
-            "temperature": config["temperature"]
+            "max_completion_tokens": config.get("max_completion_tokens", config.get("max_tokens", 4000))
         }
+        
+        # Add temperature only if it exists in config
+        if "temperature" in config:
+            payload["temperature"] = config["temperature"]
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -141,8 +144,8 @@ Provide only the JSON array, no additional text.
         
         payload = {
             "model": config["model_name"],
-            "max_tokens": config["max_tokens"],
-            "temperature": config["temperature"],
+            "max_tokens": config.get("max_tokens", 4000),
+            "temperature": config.get("temperature", 0.1),
             "messages": [
                 {"role": "user", "content": prompt}
             ]
@@ -173,8 +176,8 @@ Provide only the JSON array, no additional text.
                 }
             ],
             "generationConfig": {
-                "temperature": config["temperature"],
-                "maxOutputTokens": config["max_tokens"]
+                "temperature": config.get("temperature", 0.1),
+                "maxOutputTokens": config.get("max_tokens", 4000)
             }
         }
         
@@ -203,8 +206,8 @@ Provide only the JSON array, no additional text.
                 {"role": "system", "content": "You are an expert accessibility analyst. Always respond with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": config["max_tokens"],
-            "temperature": config["temperature"]
+            "max_tokens": config.get("max_tokens", 4000),
+            "temperature": config.get("temperature", 0.1)
         }
         
         async with httpx.AsyncClient() as client:
@@ -230,8 +233,8 @@ Provide only the JSON array, no additional text.
                 {"role": "system", "content": "You are an expert accessibility analyst. Always respond with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": config["max_tokens"],
-            "temperature": config["temperature"]
+            "max_tokens": config.get("max_tokens", 4000),
+            "temperature": config.get("temperature", 0.1)
         }
         
         async with httpx.AsyncClient() as client:
@@ -257,8 +260,8 @@ Provide only the JSON array, no additional text.
                 {"role": "system", "content": "You are an expert accessibility analyst. Always respond with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": config["max_tokens"],
-            "temperature": config["temperature"]
+            "max_tokens": config.get("max_tokens", 4000),
+            "temperature": config.get("temperature", 0.1)
         }
         
         async with httpx.AsyncClient() as client:
@@ -289,6 +292,16 @@ Provide only the JSON array, no additional text.
             else:
                 return []
             
+            # Clean content - remove markdown code blocks if present
+            content = content.strip()
+            if content.startswith("```json"):
+                content = content[7:]  # Remove ```json
+            if content.startswith("```"):
+                content = content[3:]   # Remove ```
+            if content.endswith("```"):
+                content = content[:-3]  # Remove trailing ```
+            content = content.strip()
+            
             # Parse JSON response
             issues = json.loads(content)
             if isinstance(issues, list):
@@ -298,4 +311,5 @@ Provide only the JSON array, no additional text.
                 
         except (KeyError, IndexError, json.JSONDecodeError) as e:
             print(f"Error parsing LLM response: {e}")
+            print(f"Content that failed to parse: {content[:200]}...")
             return []

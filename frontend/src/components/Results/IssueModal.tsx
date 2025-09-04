@@ -14,11 +14,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  Divider,
   IconButton,
   useTheme,
-  Alert,
-  LinearProgress
+  Alert
 } from '@mui/material';
 import {
   Close,
@@ -31,7 +29,6 @@ import {
   Error,
   Info
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { AccessibilityIssue } from '../../types';
