@@ -76,8 +76,8 @@ LLM_CONFIGS = {
         "temperature": 0.1
     },
     "gemini-2.5-pro": {
-        "api_endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-        "model_name": "gemini-2.0-flash-exp",
+        "api_endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
+        "model_name": "gemini-1.5-pro",
         "headers": {
             "Content-Type": "application/json"
         },

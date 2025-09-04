@@ -11,7 +11,7 @@ class LLMService:
             "claude-opus-4": settings.anthropic_api_key,
             "gemini-2.5-pro": settings.google_api_key,
             "grok-4": settings.groq_api_key,
-            "llama-4": settings.groq_api_key,  # Using Groq for Llama
+            "llama-4": settings.huggingface_api_key,  # Using Hugging Face for Llama
             "deepseek-v3.1": settings.deepseek_api_key
         }
     
