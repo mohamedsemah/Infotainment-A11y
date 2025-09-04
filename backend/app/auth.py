@@ -97,12 +97,10 @@ def get_current_active_user_dev(
     demo_user = db.query(User).filter(User.email == "demo@example.com").first()
     if not demo_user:
         demo_user = User(
-            id="demo-user-123",
             email="demo@example.com",
-            name="Demo User",
+            username="demo_user",
             hashed_password=get_password_hash("demo123"),
-            is_active=True,
-            created_at=datetime.utcnow()
+            is_active=True
         )
         db.add(demo_user)
         db.commit()
